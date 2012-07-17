@@ -213,8 +213,10 @@ void draw() {
 //////////////////////////////// Serial Data received with a termination character _c ////////////////////////
 void serialEvent(Serial p) {
   //// Serial Event is called when delimiter character _c is encountered.
-  String tmpstring = (myPort.readString()); // 
-  int strlen = tmpstring.length(); // length of the received string 
+//  String tmpstring = (myPort.readString()); // 
+  byte[] portBytes = myPort.readBytes();
+//  int strlen = tmpstring.length(); // length of the received string 
+  int strlen = portBytes.length();
   if (  (strlen > 0) && (strlen < PXDATALENGTH)) {
     //// incomplete reading received, either _c character was encountered too early (can happen) or the reception begun too late
     inString = inString + tmpstring;
@@ -226,8 +228,8 @@ void serialEvent(Serial p) {
     
     ////delimiterFoundp = match(tmpstring, "[A][x]\?\?[B]\?\?yC");  //if (delimiterFoundp != null) {
         
-    short PXsize1 = byte2short( tmpstring.substring(PXDATALENGTH-4, PXDATALENGTH-2).getBytes() , 0);
-    short PXsize2 = byte2short( tmpstring.substring(PXDATALENGTH-7, PXDATALENGTH-5).getBytes() , 0);
+    short PXsize1 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-4, PXDATALENGTH-2) , 0);
+    short PXsize2 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-7, PXDATALENGTH-5) , 0);
         
     if (PXsize1==PXsize2) {
       inString = tmpstring;
@@ -497,7 +499,7 @@ class Spectrum {
 
 
 /////////////////// Generic functions ///////////////////////////////////////////
-public static short byte2short(byte[] data, int offset) {
+public static short bytes2short(byte[] data, int offset) {
 	return (short) (((data[offset+1] << 8)) | ((data[offset + 0] & 0xff)));
 }
 
