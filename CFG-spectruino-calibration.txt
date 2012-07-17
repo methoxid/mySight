@@ -1,0 +1,3 @@
+# Spectruino v1.0 pre-beta TEST device serial# 002 20120716  a=slope [nm/px], b=intercept [px] y=a*x+b
+1.08472
+345
