@@ -60,7 +60,8 @@ int _ysize=256*2;                    // height of the image
 int bgcolor;			     // Background color
 int fgcolor;			     // Fill color
 Serial myPort;                       // The serial port
-String[] sfoundp;                    // contains 0 if spectruino not found       
+//String[] sfoundp;                    // is null if spectruino not found       
+String[] portFound;                   // true if port was found
 int _gain_y = 2;                     // Gain factor for displaying the data
 int _gain_x = 2;                     // Gain factor for x-axis
 int _reverse_x = -1;                 // reverse x axis, sensor sends red --> blue color order (1 = normal, -1 = reversed)
@@ -77,7 +78,7 @@ int[] serialInArray = new int[PXTOT];// Where we'll put what we receive
 int serialCount = 0;                 // A count of how many bytes we receive
 int xpos, ypos;		             // Starting position of the ball
 //byte[] inBuffer = new byte[int(PXTOT*1.5)];      //Expand array size to the number of bytes you expect:    
-byte [] serialPixelBuffer = new byte[int(PXDATALENGTH)];
+byte [] serialPixelBuffer = new byte[PXDATALENGTH];
 int ccc=0; // counter
 boolean _starting = true;   // if the application is starting 
 
@@ -125,14 +126,17 @@ void setup() {
       fill(244);
       textSize(24);
 
-      sfoundp = match(portName, "[uUcC][sSoO][bBmM]");
+      println("Port name:" + portName);
       
-      if (sfoundp != null) {
+      portFound = match(portName.toLowerCase(), "^usb$|^com\\d*$"); //[uUcC][sSoO][bBmM]
+      
+      if (portFound!=null) {
         myPort = new Serial(this, portName, 115200);
         println("Spectruino found on '" + portName + "'");
 //        text(">> serial port open OK.", width/4, height/2+26);  
 //        text(">> press 'h' for help.", width/4, height/2+26+26);          
        //myPort.buffer(0);  //// set buffer length delete if necessary
+       // XXX: what if 67 (=int('C')) occurs in the stream before end?
         myPort.bufferUntil(_c);
       } else {
         println("Error: Spectruino not found on '" + portName + "'");
@@ -158,7 +162,7 @@ void draw() {
   /////////////// Do following when program is first started ///////////////
   if (_starting){
       delay(500);
-      if (sfoundp != null) {
+      if (portFound!=null) {
         text(">> serial port open OK. \n"+
              ">> press 'h' for help."   
               , width/4, height/2+26);         
@@ -178,6 +182,7 @@ void draw() {
   ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
   if  (inString.length() == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
     
+          // XXX: WTF is 9??? -> use constant for header size
             spectrum1 = new Spectrum(PXDATALENGTH-9, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
             
   ////////          spectrum1._print();  //// Print the spectrum to command line output
@@ -248,7 +253,7 @@ void serialEvent(Serial p) {
 }
 
  void mousePressed() {
-      saveFrame("####spectrum.png");
+      saveFrame("snapshots/####spectrum.png");
       background(0, 0, 0);
       axes();
       axes_labels();
