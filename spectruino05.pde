@@ -212,11 +212,59 @@ void draw() {
 
 ///////////////////////////////// EVENTS ///////////////////////////////////////////////
 
+void processCompleteBuffer() {
+  println("processCompleteBuffer0");
+    if (isHeaderPresent(incomingDataBuffer, PXDATALENGTH)) {
+  println("processCompleteBuffer1 " + incomingDataLength);      
+//      incomingDataBuffer = portBytes;
+//      serialPixelBuffer = tmpstring.getBytes();
+      //serialPixelBuffer = incomingDataBuffer;
+      System.arraycopy(incomingDataBuffer, 0, serialPixelBuffer, 0, incomingDataLength);
+    } else if (_DBG) {
+      short PXsize1 = bytes2short( Arrays.copyOfRange(incomingDataBuffer, PXDATALENGTH-4, PXDATALENGTH-2), 0);
+      short PXsize2 = bytes2short( Arrays.copyOfRange(incomingDataBuffer, PXDATALENGTH-7, PXDATALENGTH-5), 0);
 
+      print(" >>ERR: PXsize1 != PXsize2 "+PXsize1+" "+PXsize2);
+    }
+}
 
 //////////////////////////////// Serial Data received with a termination character _c ////////////////////////
 void serialEvent(Serial p) {
   // XXX: should check if pointer == PXDATALENGTH and header at the end
+  byte[] portBytes = myPort.readBytes();
+  int currDataLength = portBytes.length;
+
+//  incomingDataLength
+   if (isHeaderPresent(portBytes, currDataLength)) {
+     if(incomingDataLength+currDataLength==PXDATALENGTH) {
+       // we got complete measuring
+        System.arraycopy(portBytes, 0, incomingDataBuffer, incomingDataLength, currDataLength);       
+        incomingDataLength+=currDataLength;
+        // process incomingDataBuffer
+        processCompleteBuffer();
+        return;       
+     } else {
+       // throw away everything
+       incomingDataLength = 0;
+       return;
+     }
+   } else {
+     // header not present
+     if (incomingDataLength+currDataLength<=PXDATALENGTH-HEADER_SIZE) {
+        // paste into the buffer
+        System.arraycopy(portBytes, 0, incomingDataBuffer, incomingDataLength, currDataLength);       
+        incomingDataLength+=currDataLength;
+        return;
+     } else {
+       // throw away
+       incomingDataLength = 0;
+       return;
+     }
+   }
+}
+
+void trashSerialEvent(Serial p) {
+// everything after this, goes to trash in the future
     
   //// Serial Event is called when delimiter character _c is encountered.
   //  String tmpstring = (myPort.readString()); // 
@@ -259,19 +307,40 @@ void serialEvent(Serial p) {
 
     ////delimiterFoundp = match(tmpstring, "[A][x]\?\?[B]\?\?yC");  //if (delimiterFoundp != null) {
 
-    short PXsize1 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-4, PXDATALENGTH-2), 0);
-    short PXsize2 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-7, PXDATALENGTH-5), 0);
+//    short PXsize1 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-4, PXDATALENGTH-2), 0);
+//    short PXsize2 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-7, PXDATALENGTH-5), 0);
 
-    if (PXsize1==PXsize2) {
+    if (isHeaderPresent(incomingDataBuffer, PXDATALENGTH)) {
 //      incomingDataBuffer = portBytes;
 //      serialPixelBuffer = tmpstring.getBytes();
       //serialPixelBuffer = incomingDataBuffer;
       System.arraycopy(incomingDataBuffer, 0, serialPixelBuffer, 0, incomingDataLength);
     } 
     else if (_DBG) {
+      short PXsize1 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-4, PXDATALENGTH-2), 0);
+      short PXsize2 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-7, PXDATALENGTH-5), 0);
+
       print(" >>ERR: PXsize1 != PXsize2 "+PXsize1+" "+PXsize2);
     }
   } 
+}
+
+//boolean isHeaderPresent(byte[] arr) {
+////  return isHeaderPresent(arr, PXDATALENGTH);
+//  return isHeaderPresent(arr, PXDATALENGTH);
+//}
+
+boolean isHeaderPresent(byte[] arr, int headerEndIndex) {
+//  println(arr);
+//  println(Arrays.copyOfRange(arr, headerEndIndex-4, headerEndIndex-2));
+//  println(Arrays.copyOfRange(arr, headerEndIndex-7, headerEndIndex-5));
+//  if (headerEndIndex-HEADER_SIZE<0) {
+//    return false;
+//  }
+
+  short PXsize1 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-4, headerEndIndex-2), 0);
+  short PXsize2 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-7, headerEndIndex-5), 0);
+  return PXsize1==PXsize2;
 }
 
 void mousePressed() {
