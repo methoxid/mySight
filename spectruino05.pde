@@ -111,6 +111,8 @@ void setup() {
   // The first port in the serial list on my mac is always my  FTDI adaptor, so I open Serial.list()[0].
   // On Windows machines, this generally opens COM1.
   portName = Serial.list()[0];
+
+//  PortHandler.listPorts();
       
   spectra = new ArrayList();  // Create an empty ArrayList
   
@@ -185,7 +187,9 @@ void draw() {
           // XXX: WTF is 9??? -> use constant for header size
             spectrum1 = new Spectrum(PXDATALENGTH-9, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
             
-  ////////          spectrum1._print();  //// Print the spectrum to command line output
+            if (_DBG) {
+              spectrum1._print();  //// Print the spectrum to command line output
+            }
             
             stroke(255, 128, 0);
             spectrum1.plot();    //// Plot the received spectrum.
@@ -584,3 +588,6 @@ void setExposureTime(int valueTime){
     println("EXPosure time: "+valueTime+" ");    
 }
 /////////////////////// END SET EXPORSURE TIME ////////////////////////////////////////
+
+
+
