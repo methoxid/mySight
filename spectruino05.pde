@@ -213,9 +213,9 @@ void draw() {
 ///////////////////////////////// EVENTS ///////////////////////////////////////////////
 
 void processCompleteBuffer() {
-  println("processCompleteBuffer0");
+//  println("processCompleteBuffer0");
     if (isHeaderPresent(incomingDataBuffer, PXDATALENGTH)) {
-  println("processCompleteBuffer1 " + incomingDataLength);      
+//  println("processCompleteBuffer1 " + incomingDataLength);      
 //      incomingDataBuffer = portBytes;
 //      serialPixelBuffer = tmpstring.getBytes();
       //serialPixelBuffer = incomingDataBuffer;
@@ -228,13 +228,41 @@ void processCompleteBuffer() {
     }
 }
 
+void printDataDigest(byte[] arr) {
+  int digestStartLength = 5;
+  int digestEndLength = 5;  
+  int digestStartEndIndex = min(arr.length, digestStartLength);
+  int digestEndStartIndex = arr.length-(digestEndLength+HEADER_SIZE);
+  StringBuilder sb = new StringBuilder();
+  
+  for (int i=0; i<digestStartEndIndex; i++) {
+    sb.append(String.valueOf(arr[i]));
+    sb.append(",");
+  }
+  if (digestEndStartIndex>=0 && digestEndStartIndex>digestStartEndIndex) {
+    sb.append("..., ");
+    for (int i=digestEndStartIndex; i<arr.length; i++) {
+      sb.append(String.valueOf(arr[i]));
+      sb.append(",");
+    }
+  }
+
+  println(sb.toString());
+}
+
 //////////////////////////////// Serial Data received with a termination character _c ////////////////////////
 void serialEvent(Serial p) {
-  // XXX: should check if pointer == PXDATALENGTH and header at the end
   byte[] portBytes = myPort.readBytes();
   int currDataLength = portBytes.length;
+  
+  printDataDigest(portBytes);
+//  String tmpIncomingData = "";
+//  for (int i=0; i<min(portBytes.length, 10); i++) {
+//    tmpIncomingData += String.valueOf(portBytes[i]) + ", " ;
+//  }
+//  println("In:" + tmpIncomingData);
 
-//  incomingDataLength
+  // XXX: check why occasionally crashing here - probably when spectruino is unplugged
    if (isHeaderPresent(portBytes, currDataLength)) {
      if(incomingDataLength+currDataLength==PXDATALENGTH) {
        // we got complete measuring
@@ -334,9 +362,10 @@ boolean isHeaderPresent(byte[] arr, int headerEndIndex) {
 //  println(arr);
 //  println(Arrays.copyOfRange(arr, headerEndIndex-4, headerEndIndex-2));
 //  println(Arrays.copyOfRange(arr, headerEndIndex-7, headerEndIndex-5));
-//  if (headerEndIndex-HEADER_SIZE<0) {
-//    return false;
-//  }
+//  println("isHeaderPresent arr.len:" + arr.length + " headerEnd:" + headerEndIndex);
+  if (headerEndIndex-HEADER_SIZE<0) {
+    return false;
+  }
 
   short PXsize1 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-4, headerEndIndex-2), 0);
   short PXsize2 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-7, headerEndIndex-5), 0);
