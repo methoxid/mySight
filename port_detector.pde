@@ -3,19 +3,30 @@ import processing.serial.*;
 
 class PortDetector {
   
-  int detectionInterval = 1 * 1000;  // 10 seconds
+  int detectionInterval = 3 * 1000;  // 10 seconds
   Timer timer = new Timer(detectionInterval);
-  String[] ports = Serial.list();
+//  String[] ports = Serial.list();
+//  Serial[] serials = new Serial[ports.length];
+  String[] ports = new String[0];
   Serial[] serials = new Serial[ports.length];
+
   boolean portInitializationInProgress = false;
   boolean spectruinoDetectionInProgress = false;
   boolean detectionTimedOut = false;
+  boolean mockPort = false;
   
   boolean portReady() {
-    return !spectruinoDetectionInProgress && !portInitializationInProgress;
+    return mockPort || (!spectruinoDetectionInProgress && !portInitializationInProgress);
+  }
+  
+  void init() {
+      ports = Serial.list();
+      serials = new Serial[ports.length];
+      mockPort = false;
   }
     
   void startPortDetection() {   
+    init();
     detectionTimedOut = false;
     spectruinoDetectionInProgress = true;
     if (_DBG) {

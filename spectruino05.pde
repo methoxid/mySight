@@ -113,12 +113,12 @@ void prepareStage() {
   fontA = loadFont("Dosis-Regular-32.vlw");
   // Set the font and its size (in units of pixels)
   textFont(fontA, 32);
-  println("Starting..."); 
-  fill(160);
-  textSize(18);
-  text("Opening serial port...", width/4, height/2);
-  fill(244);
-  textSize(24);
+//  println("Starting..."); 
+//  fill(160);
+//  textSize(18);
+//  text("Opening serial port...", width/4, height/2);
+//  fill(244);
+//  textSize(24);
 
 }
 
@@ -145,6 +145,8 @@ void detectSpectruino() {
 }
 
 void startMockPort() {
+  appState = APP_STATE_MOCK_PORT;  
+  portDetector.mockPort = true;
 }
 
 void setup() {
@@ -152,8 +154,8 @@ void setup() {
   prepareStage();
   spectra = new ArrayList();  // Create an empty ArrayList
 
-  detectSpectruino();
-
+//  detectSpectruino();
+  printMainText("Welcome to spectruino app.\nPress:\n[1] Start simulation [2] Detect spectruino");
   
   /*
   // Print a list of the serial ports, for debugging purposes:
@@ -212,6 +214,7 @@ int APP_STATE_STARTED = 1;
 int APP_STATE_DETECTING = 1;
 int APP_STATE_READY = 2;
 int APP_STATE_DETECTION_TIMED_OUT = 10;
+int APP_STATE_MOCK_PORT = 11;
 
 
 //////////////////////////// DRAW FUNCTION LOOP ////////////////////////////////////////////////////
@@ -236,23 +239,13 @@ void draw() {
     axes_labels();
     _starting=false;
 
-//    if (portFound!=null) {
-//      text(">> serial port open OK. \n"+
-//        ">> press 'h' for help."   
-//        , width/4, height/2+26);         
-//      println("Starting to receive data...");
-//      axes();
-//      axes_labels();
-//      _starting=false;
-//    } 
-//    else {
-//      delay(10000);
-//      frame.setVisible(false);
-//      System.exit(0);
-//      exit();
-//    }
   } //end if starting
 
+  println("appState:" + appState);
+  if (appState==APP_STATE_MOCK_PORT) {
+      fillMockData(serialPixelBuffer);
+      incomingDataLength = PXDATALENGTH;
+  }
 
   ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
   if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
@@ -452,6 +445,7 @@ void handleKeySpectruinoNotDetected() {
   switch(key) {
     case '1':
       println("start mock");
+      startMockPort();
       break;
     case '2':
       println("detect again");
@@ -462,7 +456,7 @@ void handleKeySpectruinoNotDetected() {
 
 void keyReleased() {
 
-  if (appState==APP_STATE_DETECTION_TIMED_OUT) {
+  if (appState==APP_STATE_DETECTION_TIMED_OUT || appState==APP_STATE_STARTED || appState==APP_STATE_FIRST_RUN) {
     handleKeySpectruinoNotDetected();
     return;
   }
@@ -800,4 +794,20 @@ void setExposureTime(int valueTime) {
 /////////////////////// END SET EXPORSURE TIME ////////////////////////////////////////
 
 
+// junkyard
+//    if (portFound!=null) {
+//      text(">> serial port open OK. \n"+
+//        ">> press 'h' for help."   
+//        , width/4, height/2+26);         
+//      println("Starting to receive data...");
+//      axes();
+//      axes_labels();
+//      _starting=false;
+//    } 
+//    else {
+//      delay(10000);
+//      frame.setVisible(false);
+//      System.exit(0);
+//      exit();
+//    }
 
