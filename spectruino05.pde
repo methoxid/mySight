@@ -65,7 +65,8 @@ String[] portFound;                   // true if port was found
 int _gain_y = 2;                     // Gain factor for displaying the data
 int _gain_x = 2;                     // Gain factor for x-axis
 int _reverse_x = -1;                 // reverse x axis, sensor sends red --> blue color order (1 = normal, -1 = reversed)
-int _reverse_y = -1;                 // reverse y axis, sensor sends high (255) values as darkness, low values as light (1 = normal, -1 = reversed)
+//int _reverse_y = -1;                 // reverse y axis, sensor sends high (255) values as darkness, low values as light (1 = normal, -1 = reversed)
+int _reverse_y = 1;
 String portName;                     // serial COM port name
 String _cdelim = "yC";               // String delimiter from Microcontroller
 //String inString = new String();      // serial pixel data array as a String, PX1, PX2, ....., PX501, HEADER
@@ -92,13 +93,10 @@ float calibrationA=1.0;  // calibration coefficient, slope
 float calibrationB=400.0; // calibration coefficient, intercept 
 boolean calibrationFileFoundp=false; // calibration file found?
 
+int bitrate = 115200; 
 
 
-
-
-void setup() {
-
-
+void prepareStage() {
   //size(1051, 562, P3D);  // Stage size
   size(1144, 642, P3D);  // Stage size, unfortunately, processing only allows constants here //size(_xsize+2*_dx, _ysize+2*_dy, P3D);  // Stage size
 
@@ -108,7 +106,56 @@ void setup() {
   stroke(4);
   // smooth(); // do not turn on, characters look bad with smooting
   background(bgcolor);
+  //      frame.setTitle("Frame Number "+str(frameCount));
+  frame.setTitle("myspectral.com Spectruino Analyzer v"+str(_ver));
+  
+    // Load the font. For vector fonts, use the createFont() function. 
+  fontA = loadFont("Dosis-Regular-32.vlw");
+  // Set the font and its size (in units of pixels)
+  textFont(fontA, 32);
+  println("Starting..."); 
+  fill(160);
+  textSize(18);
+  text("Opening serial port...", width/4, height/2);
+  fill(244);
+  textSize(24);
 
+}
+
+PortDetector portDetector = new PortDetector();;
+
+void clearScreen() {
+    noStroke();
+//    fill(0, 20); //transparency
+    fill(0);
+    rect(_dx+_thck,_dy,width,height-2*_dy);  
+}
+
+void printMainText(String txt) {
+  fill(160);
+  textSize(18);
+  text(txt, width/4, height/2);
+}
+
+void detectSpectruino() {
+    appState = APP_STATE_DETECTING;
+    portDetector.startPortDetection();
+    clearScreen();
+    printMainText("Detecting spectruino...");
+}
+
+void startMockPort() {
+}
+
+void setup() {
+
+  prepareStage();
+  spectra = new ArrayList();  // Create an empty ArrayList
+
+  detectSpectruino();
+
+  
+  /*
   // Print a list of the serial ports, for debugging purposes:
   println(Serial.list());
 
@@ -138,7 +185,7 @@ void setup() {
   portFound = match(portName.toLowerCase(), "^usb$|^com\\d*$"); //[uUcC][sSoO][bBmM]
 
   if (portFound!=null) {
-    myPort = new Serial(this, portName, 115200);
+    myPort = new Serial(this, portName, bitrate);
     println("Spectruino found on '" + portName + "'");
     //        text(">> serial port open OK.", width/4, height/2+26);  
     //        text(">> press 'h' for help.", width/4, height/2+26+26);          
@@ -152,48 +199,69 @@ void setup() {
     text(">> Exiting now...", width/4, height/2+56);
     println("Exiting now...");
   }
+*/
 
-  //      frame.setTitle("Frame Number "+str(frameCount));
-  frame.setTitle("myspectral.com Spectruino Analyzer v"+str(_ver));
 
   // Load calibration file, if any 
   loadCalibrationFile();
 }  
 
+int appState = 0; // app states: 0 - just started, 1 - detecting spectruino, 2 - spectruino detected, 3 - measurement in progress 10 - spectruino detection timed out
+int APP_STATE_FIRST_RUN = 0;
+int APP_STATE_STARTED = 1;
+int APP_STATE_DETECTING = 1;
+int APP_STATE_READY = 2;
+int APP_STATE_DETECTION_TIMED_OUT = 10;
 
 
 //////////////////////////// DRAW FUNCTION LOOP ////////////////////////////////////////////////////
 void draw() {
+    
+  if (!portDetector.portReady()) {
+    if (portDetector.detectionTimedOut()) {
+      appState = 10;
+      clearScreen();
+      //fill(0, 20); //transparency
+//      rect(_dx+_thck,_dy,width,height-2*_dy); 
 
+      printMainText("Spectruino not detected\n[1] Start simulation [2] Detect again");
+    }
+    return;
+  }
+  
   /////////////// Do following when program is first started ///////////////
   if (_starting) {
     delay(500);
-    if (portFound!=null) {
-      text(">> serial port open OK. \n"+
-        ">> press 'h' for help."   
-        , width/4, height/2+26);         
-      println("Starting to receive data...");
-      axes();
-      axes_labels();
-      _starting=false;
-    } 
-    else {
-      delay(10000);
-      frame.setVisible(false);
-      System.exit(0);
-      exit();
-    }
+    axes();
+    axes_labels();
+    _starting=false;
+
+//    if (portFound!=null) {
+//      text(">> serial port open OK. \n"+
+//        ">> press 'h' for help."   
+//        , width/4, height/2+26);         
+//      println("Starting to receive data...");
+//      axes();
+//      axes_labels();
+//      _starting=false;
+//    } 
+//    else {
+//      delay(10000);
+//      frame.setVisible(false);
+//      System.exit(0);
+//      exit();
+//    }
   } //end if starting
 
 
   ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
   if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
-
     spectrum1 = new Spectrum(PXDATALENGTH-HEADER_SIZE, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
-
-            if (_DBG) {
-              spectrum1._print();  //// Print the spectrum to command line output
-            }
+  
+    if (_DBG) {
+      printDataDigest(serialPixelBuffer);
+      spectrum1._print();  //// Print the spectrum to command line output
+    }
 
     stroke(255, 128, 0);
     spectrum1.plot();    //// Plot the received spectrum.
@@ -232,31 +300,22 @@ void processCompleteBuffer() {
     }
 }
 
-void printDataDigest(byte[] arr) {
-  int digestStartLength = 5;
-  int digestEndLength = 5;  
-  int digestStartEndIndex = min(arr.length, digestStartLength);
-  int digestEndStartIndex = arr.length-(digestEndLength+HEADER_SIZE);
-  StringBuilder sb = new StringBuilder();
-  
-  for (int i=0; i<digestStartEndIndex; i++) {
-    sb.append(String.valueOf(arr[i]));
-    sb.append(",");
-  }
-  if (digestEndStartIndex>=0 && digestEndStartIndex>digestStartEndIndex) {
-    sb.append("..., ");
-    for (int i=digestEndStartIndex; i<arr.length; i++) {
-      sb.append(String.valueOf(arr[i]));
-      sb.append(",");
-    }
-  }
 
-  println(sb.toString());
-}
 
 //////////////////////////////// Serial Data received with a termination character _c ////////////////////////
 void serialEvent(Serial p) {
+  if (portDetector.spectruinoDetectionInProgress) {   
+    if (portDetector.checkPortDetection(p)!=null) {
+      myPort = p;
+    } else if (portDetector.detectionTimedOut()) {
+      // TODO: 
+      println("No spectruino found");
+    }
+    return;
+  }
+  
   byte[] portBytes = myPort.readBytes();
+  printDataDigest(portBytes);
   int currDataLength = portBytes.length;
   
   printDataDigest(portBytes);
@@ -371,9 +430,11 @@ boolean isHeaderPresent(byte[] arr, int headerEndIndex) {
     return false;
   }
 
-  short PXsize1 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-4, headerEndIndex-2), 0);
+  short PXsize1 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-4, headerEndIndex-2), 0);  
   short PXsize2 = bytes2short( Arrays.copyOfRange(arr, headerEndIndex-7, headerEndIndex-5), 0);
-  return PXsize1==PXsize2;
+  // XXX: check header properly!!! - including delimiting characters
+  byte beforeLastHeaderVal = 121;
+  return PXsize1==PXsize2 && arr[headerEndIndex-2]==beforeLastHeaderVal;
 }
 
 void mousePressed() {
@@ -384,8 +445,27 @@ void mousePressed() {
   //       noStroke();
 } // END mousepressed
 
+void handleKeyRunning() {
+}
+
+void handleKeySpectruinoNotDetected() {
+  switch(key) {
+    case '1':
+      println("start mock");
+      break;
+    case '2':
+      println("detect again");
+      detectSpectruino();
+      break;
+  }
+}
+
 void keyReleased() {
 
+  if (appState==APP_STATE_DETECTION_TIMED_OUT) {
+    handleKeySpectruinoNotDetected();
+    return;
+  }
   //// If numeric keys 1,2 ... 9,0 pressed,
   //// Send command "set exposure time(N)" to the serial port
   //// from ca. 0.4 s to 10 seconds, adjust for your application or think of other ways of setting exposure time
@@ -551,6 +631,9 @@ class Spectrum {
   void adjustNormalize() {
     // subtract black level from data, which is stored at position 0
     //    black=255-data[0]; // 8-bit resolution
+    println("data before adjust");
+    printDataDigest(data);
+
     if (_reverse_y>0) {
       black=255-max(data); // 8-bit resolution // this is the "real" black level
     } 
@@ -560,6 +643,8 @@ class Spectrum {
     if (black < 0 ) { 
       black=0;
     } // this needs to be checked thoroughly
+    println("black:" + black);
+    
     for (int i=0; i<len; i++) {
       data[i]=_reverse_y*(data[i]-black);
     }
@@ -571,6 +656,9 @@ class Spectrum {
       //      } 
       arrayreverse(data);
     }
+    println("adjustedData");
+    printDataDigest(data);
+
   } // End Spectrum.adjustNormalize
 
   public int getValueAtPixel(int pixel) {
