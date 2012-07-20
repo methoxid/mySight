@@ -1,0 +1,3 @@
+20120719:
+- basic spectruino detection
+- mock data generator
