@@ -1,6 +1,9 @@
 *.class
 
 # Package Files #
-*.jar
+# temporarily allow .jar to allow generated binaries in repo
+#*.jar
 *.war
 *.ear
+snapshots/*.png
+
