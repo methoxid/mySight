@@ -1,0 +1,1 @@
+This directory contains images you capture from the application.
