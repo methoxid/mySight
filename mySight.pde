@@ -92,16 +92,16 @@ PortDetector portDetector = new PortDetector();;   // Detecting the serial port 
 //// General variables 
 //int ccc=0; // counter
 boolean _starting = true;   // if the application is starting 
-//// Application states for debugging purposes and program flow
 
-int APP_STATE_FIRST_RUN = 0;             // 1 - detecting spectruino
-int APP_STATE_STARTED = 1; 
-int APP_STATE_DETECTING = 1;
-int APP_STATE_READY = 2;                 // 2 - spectruino detected  
-int APP_STATE_MEASURE = 3;               // 3 - measurement in progress 
-int APP_STATE_DETECTION_TIMED_OUT = -10; // 10 - spectruino detection timed out
-int APP_STATE_MOCK_PORT = 4;
-int appState = APP_STATE_FIRST_RUN;      // 0 - just started
+//// Program states for debugging purposes and program flow
+int STATE_FIRST_RUN = 0;             // 1 - detecting spectruino
+int STATE_STARTED = 1; 
+int STATE_DETECTING = 1;
+int STATE_READY = 2;                 // 2 - spectruino detected  
+int STATE_MEASURE = 3;               // 3 - measurement in progress 
+int STATE_DETECTION_TIMED_OUT = -10; // 10 - spectruino detection timed out
+int STATE_SIMULATION_MODE = 4;
+int appState = STATE_FIRST_RUN;      // 0 - just started
 
 //// Calibration data ////
 // calibration works with y=a*x+b linear regression x = pixel, y=wavelength, a=slope [nm/px] b=intercept [nm]
@@ -127,7 +127,7 @@ void prepareStage() {
 
 
 void detectSpectruino() {
-    appState = APP_STATE_DETECTING;
+    appState = STATE_DETECTING;
     portDetector.startPortDetection(this);
     clearScreen();
     printMainText("Detecting Spectruino...");
@@ -135,7 +135,7 @@ void detectSpectruino() {
 
 void startMockPort() {
   //// Setting a virtual Serial port for Simulation mode when Spectruino is not present
-  appState = APP_STATE_MOCK_PORT;  
+  appState = STATE_SIMULATION_MODE;  
   portDetector.mockPort = true;
 }
 
@@ -152,51 +152,52 @@ void setup() {
 void draw() {
 
   /////////////// Do following when program is first started ///////////////
-  if (appState == APP_STATE_FIRST_RUN) {
+  if (appState == STATE_FIRST_RUN) {
  // if (_starting) {
     delay(500);
     axes();
     axes_labels();
     _starting=false;
-    appState+=1;
   } //end if starting
 
+  if (portDetector.mockPort) {
+      fillMockData(serialPixelBuffer);
+      incomingDataLength = PXDATALENGTH;
+  }  
+
+  //// If Spectruino not present on serial port X  
+  if (portDetector.portReady() || portDetector.mockPort) {
+      ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
+      if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
+        spectrum1 = new Spectrum(PXDATALENGTH-HEADER_SIZE, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
+      
+        if (_DBG) {
+          //printDataDigest(serialPixelBuffer);
+          spectrum1._print();  //// Print the spectrum to command line output
+        }
+    
+        stroke(255, 128, 0);
+        spectrum1.plot();    //// Plot the received spectrum.
+        axes();              //// (re)Plot axes
+        //spectra.add();     //// TODO: save more spectra over a period of time into a stack buffer
+    
+        //// Draw a transparent rectangle over the renewable graph area, this ensures the effect of "diminishing over time"
+        noStroke();
+        fill(0, 20); //transparency
+        rect(_dx+_thck,_dy,width,height-2*_dy);  
+        incomingDataLength = 0;
+      }
+  } else {
   //// If Spectruino not present on serial port X
-  if (!portDetector.portReady()) {
     if (portDetector.detectionTimedOut()) {
-      appState = APP_STATE_DETECTION_TIMED_OUT;
+      appState = STATE_DETECTION_TIMED_OUT;
       clearScreen();
       printMainText("Spectruino not detected\n[1] Start simulation [2] Detect again");
     }
+    appState = STATE_DETECTING;
     return;
   }
-    
-  ////if (_DBG) println("appState:" + appState);
-  if (appState==APP_STATE_MOCK_PORT) {
-      fillMockData(serialPixelBuffer);
-      incomingDataLength = PXDATALENGTH;
-  }
 
-  ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
-  if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
-    spectrum1 = new Spectrum(PXDATALENGTH-HEADER_SIZE, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
-  
-    if (_DBG) {
-      //printDataDigest(serialPixelBuffer);
-      spectrum1._print();  //// Print the spectrum to command line output
-    }
-
-    stroke(255, 128, 0);
-    spectrum1.plot();    //// Plot the received spectrum.
-    axes();              //// (re)Plot axes
-    //spectra.add();     //// TODO: save more spectra over a period of time into a stack buffer
-
-    //// Draw a transparent rectangle over the renewable graph area, this ensures the effect of "diminishing over time"
-    noStroke();
-    fill(0, 20); //transparency
-    rect(_dx+_thck,_dy,width,height-2*_dy);  
-    incomingDataLength = 0;
-  }
 } // END Draw()
 
 
@@ -212,21 +213,22 @@ void processCompleteBuffer() {
 
 //////////////////////////////// Serial Data received with a termination character _c ////////////////////////
 void serialEvent(Serial p) {
-  if (portDetector.spectruinoDetectionInProgress) {   
+  if (portDetector.spectruinoDetectionInProgress) {
+    println(p);
     if (portDetector.checkPortDetection(p)!=null) {
+      println(p);
       myPort = p;
     } else if (portDetector.detectionTimedOut()) {
-      // TODO: 
       println("No spectruino found");
     }
     return;
-  }
+  } // if spectruinoDetectionInProgress
   
   byte[] portBytes = myPort.readBytes();
-  printDataDigest(portBytes);
+  ////////////////////////printDataDigest(portBytes);
   int currDataLength = portBytes.length;
   
-  printDataDigest(portBytes);
+////////////////////////////////////////  printDataDigest(portBytes);
 
   // XXX: check why occasionally crashing here - probably when spectruino is unplugged
    if (isHeaderPresent(portBytes, currDataLength)) {
@@ -323,32 +325,47 @@ boolean isHeaderPresent(byte[] arr, int headerEndIndex) {
 //  short PXsize1 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-4, PXDATALENGTH-2), 0);
 //  short PXsize2 = bytes2short( Arrays.copyOfRange(portBytes, PXDATALENGTH-7, PXDATALENGTH-5), 0);
 //  print(" >>ERR: PXsize1 != PXsize2 "+PXsize1+" "+PXsize2);
-  // XXX: check header properly!!! - including delimiting characters
+  // TODO: check header properly!!! - including delimiting characters
   byte beforeLastHeaderVal = 121;
   return PXsize1==PXsize2 && arr[headerEndIndex-2]==beforeLastHeaderVal;
 }
 
 void mousePressed() {
-  saveFrame("snapshots/####spectrum.png");
-  background(0, 0, 0);
-  axes();
-  axes_labels();
+  //// Spectruino plugged to Port P or simulated
+  if (portDetector.portReady() || portDetector.mockPort) {
+      saveFrame("snapshots/####spectrum.png");
+      background(0, 0, 0);
+      axes();
+      axes_labels();
+  } else {
+    //// Spectruino NOT plugged in or simulated
+    ////do nothing
+  }
+  
   //       noStroke();
 } // END mousepressed
 
 
-
 void keyReleased() {
-  if (appState==APP_STATE_DETECTION_TIMED_OUT || appState==APP_STATE_STARTED || appState==APP_STATE_FIRST_RUN) {
+  if (_DBG) {
+    println("KEY: "+key);
+  }
+  //// Spectruino plugged to Port P
+  if (portDetector.portReady()) {
+      handleKeyRunning();
+      handleKeySetExposure();  
+      
+  } else if (portDetector.mockPort) {
+      //// Spectruino simulated on Port P
+      handleKeyRunning();
+      return;
+
+  } else {
+    //// Spectruino NOT plugged in
     handleKeySpectruinoNotDetected();
     return;
   }
-  if (  appState == APP_STATE_MOCK_PORT ) {
-    handleKeyRunning();
-    return;
-  }
-  handleKeyRunning();
-  handleKeySetExposure();  
+  
 } ////  END void keyReleased() {
 
 ///////////// Key Commands when Application is starting
