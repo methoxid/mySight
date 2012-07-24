@@ -1,0 +1,3 @@
+
+mySight
+mySight.jar,core.jar,RXTXcomm.jar,serial.jar

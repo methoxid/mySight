@@ -6,20 +6,22 @@ class PortDetector  {
   Timer timer = new Timer(detectionInterval);
   String[] ports = new String[0];
   Serial[] serials = new Serial[ports.length];
-
+  boolean deviceConnected = false;
   boolean portInitializationInProgress = false;
   boolean spectruinoDetectionInProgress = false;
   boolean detectionTimedOut = false;
-  boolean mockPort = false;
+  boolean mockPort = false;  // is simulation mode running?
   
   boolean portReady() {
-    return mockPort || (!spectruinoDetectionInProgress && !portInitializationInProgress);
+    // is the physical port connected to spectruino?
+    return (deviceConnected && !spectruinoDetectionInProgress && !portInitializationInProgress); // meaning application just started, or application has detected spectruino
   }
   
   void init() {
       ports = Serial.list();
       serials = new Serial[ports.length];
       mockPort = false;
+      deviceConnected = false;
   }
     
   void startPortDetection(PApplet parent) {
@@ -33,15 +35,15 @@ class PortDetector  {
     
     portInitializationInProgress = true;
     for (int i=0; i<ports.length; i++) {  
-      println("Opening " + ports[i]);
+      println("Probing: " + ports[i]);
       portFound = match(ports[i].toLowerCase(), "usb|com\\d*$"); //[uUcC][sSoO][bBmM]
       if (portFound!=null) {
-        try {      
+        try {
           serials[i] = new Serial(parent, ports[i], bitrate);
-         //        serials[i] = new Serial(spectruino05.this, ports[i], bitrate); 
+        //} catch (Exception e) {
         } catch (Exception e) {
           serials[i] = null;
-          println("Problem opening port " + ports[i] + ". Probably in use...");
+          println("Problem probing port " + ports[i] + ".");
           e.printStackTrace();
           continue;
         }
@@ -54,7 +56,7 @@ class PortDetector  {
   }
   
   Serial checkPortDetection(Serial p) {
-    println("checkPortDetection");
+    println("Checking ports...");
     if (portInitializationInProgress || detectionTimedOut()) {
       return null;
     }
@@ -72,12 +74,17 @@ class PortDetector  {
             }
           } else {
             // found spectruino on port
-            println("Spectruino on " + ports[i] + " (#" + i + ")");
+            //if (_DBG) {
+              println("Spectruino on port Nr. ["+i+"] "+ ports[i] );
+              printMainText("\nSpectruino connected on port "+ports[i]);
+            //}
             spectruinoDetectionInProgress = false;
           }
       }
+      deviceConnected = true;      
       return p;
     } else {
+      deviceConnected = false;
       return null;
     }  
   }
