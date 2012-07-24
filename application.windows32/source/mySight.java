@@ -185,6 +185,7 @@ public void draw() {
   if (portDetector.mockPort) {
       fillMockData(serialPixelBuffer);
       incomingDataLength = PXDATALENGTH;
+      delay(100); //// add small pause as with real spectruino 
   }  
 
   //// If Spectruino not present on serial port X  
@@ -837,6 +838,7 @@ class PortDetector  {
     
   public void startPortDetection(PApplet parent) {
     String[] portFound;                  // null if spectruino serial port not found (true if port was found)
+    String[] portIsSpecial;              // we do not want special serial ports, otherwise errors when opening
     init();
     detectionTimedOut = false;
     spectruinoDetectionInProgress = true;
@@ -848,17 +850,17 @@ class PortDetector  {
     for (int i=0; i<ports.length; i++) {  
       println("Probing: " + ports[i]);
       portFound = match(ports[i].toLowerCase(), "usb|com\\d*$"); //[uUcC][sSoO][bBmM]
-      if (portFound!=null) {
+      portIsSpecial = match(ports[i].toLowerCase(), "cu.");
+      //portFound = match(portFound, "!!!!!!!!!!!not cu.Bluetooth  alebo cu."); //[uUcC][sSoO][bBmM]      
+      if (portFound!=null && portIsSpecial==null) {
         try {
           serials[i] = new Serial(parent, ports[i], bitrate);
-        //} catch (Exception e) {
         } catch (Exception e) {
           serials[i] = null;
           println("Problem probing port " + ports[i] + ".");
           e.printStackTrace();
           continue;
         }
-
         serials[i].bufferUntil(_c);        
       }// End if portFound
      }

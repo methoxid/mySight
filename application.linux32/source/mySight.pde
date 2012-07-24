@@ -163,6 +163,7 @@ void draw() {
   if (portDetector.mockPort) {
       fillMockData(serialPixelBuffer);
       incomingDataLength = PXDATALENGTH;
+      delay(100); //// add small pause as with real spectruino 
   }  
 
   //// If Spectruino not present on serial port X  
