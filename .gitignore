@@ -6,4 +6,4 @@
 *.war
 *.ear
 snapshots/*.png
-
+.DS_Store
