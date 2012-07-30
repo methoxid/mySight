@@ -6,4 +6,8 @@
 *.war
 *.ear
 snapshots/*.png
-.DS_Store
+application.linux64
+application.linux64/*
+application.windows64
+application.windows64/*
+*DS_Store

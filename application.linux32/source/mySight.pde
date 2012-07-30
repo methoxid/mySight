@@ -25,7 +25,7 @@
  * First available serial port will be selected as input.
  * 
  * 07/2012
- * v0.7
+ * v0.8
  * 
  *
  *
@@ -57,7 +57,7 @@ int _ysize=256*2;                    // height of the image
 int xpos, ypos;		             // Starting position of the ball
 int _gain_y = 2;                     // Gain factor for displaying the data on y-axis
 int _gain_x = 2;                     // Gain factor for x-axis
-int _reverse_x = -1;                 // reverse x axis, sensor sends red --> blue color order (1 = normal, -1 = reversed)
+int _reverse_x = +1;                 // reverse x axis, sensor sends red --> blue color order (1 = normal, -1 = reversed)
 int _reverse_y = -1;                 // reverse y axis, sensor sends high (255) values as darkness, low values as light (1 = normal, -1 = reversed)
 
 //// Drawing, Shapes and Colors
@@ -105,7 +105,7 @@ int appState = STATE_FIRST_RUN;      // 0 - just started
 
 //// Calibration data ////
 // calibration works with y=a*x+b linear regression x = pixel, y=wavelength, a=slope [nm/px] b=intercept [nm]
-float calibrationA=1.0;  // calibration coefficient, slope
+float calibrationA=-1.0;  // calibration coefficient, slope
 float calibrationB=400.0; // calibration coefficient, intercept 
 boolean calibrationFileFoundp=false; // calibration file found?
 
@@ -589,11 +589,8 @@ class Spectrum {
       data[i]=_reverse_y*(data[i]-black);
     }
     if (_reverse_x<0) {
-      int[] tmp = new int[len];    // measurement
-      tmp = data.clone();
-      //      for (int i=len; i>0; i--) {
-      //        data[i]=_reverse_y*(data[i]-black);
-      //      } 
+      //int[] tmp = new int[len];    // measurement
+      //tmp = data.clone();
       arrayreverse(data);
     }
 //    if (_DBG) {
@@ -705,7 +702,7 @@ void loadCalibrationFile() {
         csv[i][j]=temp[j];
       }
     }
-    //test
+
     println("Calibration file found: ");
     println(" "+csv[0][0]);
     println("Slope: "+csv[1][0]);
@@ -716,6 +713,12 @@ void loadCalibrationFile() {
     //      float calibrationA=1.0;  // calibration coefficient, slope
     //      float calibrationB=400.0; // calibration coefficient, intercept 
     //      boolean calibrationFileFoundp=false; // calibration file found?
+    calibrationA = float(csv[1][0]);
+    if (calibrationA<0) {
+      calibrationA=-1*calibrationA;
+      _reverse_x=1; // wavelength is measured from pixel 1 to N (not reversed direction)
+    }
+    calibrationB = float(csv[2][0]);
     calibrationFileFoundp=true;
   } 
   else {
