@@ -716,7 +716,7 @@ void loadCalibrationFile() {
     calibrationA = float(csv[1][0]);
     if (calibrationA<0) {
       calibrationA=-1*calibrationA;
-      _reverse_x=1; // wavelength is measured from pixel 1 to N (not reversed direction)
+      _reverse_x=-1; // wavelength is measured from pixel 1 to N (not reversed direction)
     }
     calibrationB = float(csv[2][0]);
     calibrationFileFoundp=true;
