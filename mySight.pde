@@ -74,7 +74,7 @@ int PXDATALENGTH = 510;              // size of string received from sensor
 int PXTOT = 2050;
 
 //// Serial Port Communication
-int bitrate = 115200;                // bitrate of Serial port in Baud
+int bitrate = 115200;                // bitrate of Serial port in Baud  int bitrate = 56700; //adjust if you use slower firmware
 String portName;                     // serial COM port name
 byte [] serialPixelBuffer = new byte[PXDATALENGTH]; // serial pixel data array as a Bytes, PX1, PX2, ....., PX501, HEADER
 byte[] incomingDataBuffer = new byte[PXDATALENGTH]; 
@@ -120,6 +120,8 @@ void prepareStage() {
   frame.setTitle("mySight - myspectral.com Spectruino Analyzer v"+str(_ver));
   // Load the font. For vector fonts, use the createFont() function. 
   fontA = loadFont("Dosis-Regular-32.vlw");
+  //  plotFont = createFont("SansSerif", 20);
+  //  textFont(plotFont);
   // Set the font and its size (in units of pixels)
   textFont(fontA, 32);
   println("Starting..."); 
@@ -414,10 +416,10 @@ void handleKeySetExposure () {
   //// for instance a slider might be a good choice.
   switch (key) {
   case '1':
-    setExposureTime(1);
+    setExposureTime(1); // at the moment 09/2012 exposure time increment is 0.032 seconds = 32ms , basic overhead is around 10 - 20 ms.
     break;
   case '2':
-    setExposureTime(2);
+    setExposureTime(2); // = 2*exposure_time_increment
     break;      
   case '3':
     setExposureTime(4);
