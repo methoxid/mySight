@@ -11,3 +11,5 @@ application.linux64/*
 application.windows64
 application.windows64/*
 *DS_Store
+
+.DS_Store
