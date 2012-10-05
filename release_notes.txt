@@ -1,3 +1,11 @@
+20121005:
+version 0.9
+-saving comma separated data now possible in /snapshot folder
+- file naming changed to "device serial number"+"date YYYYMMDDHHmmss" .png and .csv
+- exposure time added into the main screen
+- progress bar of measurement added
+
+
 20120719:
 - basic spectruino detection
 - mock data generator
