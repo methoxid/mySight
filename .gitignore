@@ -13,3 +13,9 @@ application.windows64/*
 *DS_Store
 
 .DS_Store
+
+snapshots/A4015S2P-20121002010259.csv
+
+*.csv
+
+*.png

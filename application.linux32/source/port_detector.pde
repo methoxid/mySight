@@ -2,9 +2,11 @@ import processing.serial.*;
 
 class PortDetector  {
   
-  int detectionInterval = 3 * 1000;  // N seconds
+  int detectionInterval = 2 * 1000;  // N seconds
   Timer timer = new Timer(detectionInterval);
   String[] ports = new String[0];
+  String portNameDevice;
+  String portNameShort;
   Serial[] serials = new Serial[ports.length];
   boolean deviceConnected = false;
   boolean portInitializationInProgress = false;
@@ -78,6 +80,14 @@ class PortDetector  {
             //if (_DBG) {
               println("Spectruino on port Nr. ["+i+"] "+ ports[i] );
               printMainText("\nSpectruino connected on port "+ports[i]);
+              portNameDevice = new String(ports[i]);
+              String tmp[] = match(ports[i], "(?<=-).*$|com"); // |com
+              if (tmp!=null) {
+                portNameShort = tmp[0];
+              } else {
+                portNameShort = "unknown";
+              }
+              
             //}
             spectruinoDetectionInProgress = false;
           }

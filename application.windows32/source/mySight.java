@@ -20,7 +20,7 @@ import java.util.regex.*;
 
 public class mySight extends PApplet {
 
-/** 
+ /** 
  * mySight - Spectruino Analyzer
  *  
  * by Andrej Mosat & Michal Kostic
@@ -46,8 +46,8 @@ public class mySight extends PApplet {
  * First, connect Spectruino through your USB port. Run the program.
  * First available serial port will be selected as input.
  * 
- * 07/2012
- * v0.8
+ * 10/2012
+ * v0.9
  * 
  *
  *
@@ -90,13 +90,15 @@ PFont fontA;
 //TODO: Add graphical myspectral icon //PGraphics icon;
 
 Spectrum spectrum1;                  // global var
+int historysize = 10;                // save N spectra into the history buffer
+Vector Shistory = new Vector(10);    // history spectra buffer
 //int PXSIZE = 1001;                 // number of pixels to read from sensor
 int PXSIZE = 501;                    // number of pixels to read from sensor
 int PXDATALENGTH = 510;              // size of string received from sensor
 int PXTOT = 2050;
 
 //// Serial Port Communication
-int bitrate = 115200;                // bitrate of Serial port in Baud
+int bitrate = 115200;                // bitrate of Serial port in Baud  int bitrate = 56700; //adjust if you use slower firmware
 String portName;                     // serial COM port name
 byte [] serialPixelBuffer = new byte[PXDATALENGTH]; // serial pixel data array as a Bytes, PX1, PX2, ....., PX501, HEADER
 byte[] incomingDataBuffer = new byte[PXDATALENGTH]; 
@@ -109,10 +111,10 @@ String[] portFound;                  // null if spectruino serial port not found
 int HEADER_SIZE = 9;                  // number of bytes in header +-1
 String _cdelim = "yC";               // String delimiter from Microcontroller
 int _c = PApplet.parseInt('C');                   // the delimiter character, e.g. "C" denoting end of serial pixel data array, PX1, PX2, ....., PX501, HEADER, where HEADER ends with _c 
-PortDetector portDetector = new PortDetector();;   // Detecting the serial port on which Spectruino resides
+PortDetector portDetector = new PortDetector();   // Detecting the serial port on which Spectruino resides
+int detectingDots = 0;
 
 //// General variables 
-//int ccc=0; // counter
 boolean _starting = true;   // if the application is starting 
 
 //// Program states for debugging purposes and program flow
@@ -124,6 +126,10 @@ int STATE_MEASURE = 3;               // 3 - measurement in progress
 int STATE_DETECTION_TIMED_OUT = -10; // 10 - spectruino detection timed out
 int STATE_SIMULATION_MODE = 4;
 int appState = STATE_FIRST_RUN;      // 0 - just started
+
+//// Device Hardware Variables ////
+int exposureTime=0;
+int exposureTimeMs = 0; // exposure time in milliseconds  
 
 //// Calibration data ////
 // calibration works with y=a*x+b linear regression x = pixel, y=wavelength, a=slope [nm/px] b=intercept [nm]
@@ -142,17 +148,18 @@ public void prepareStage() {
   frame.setTitle("mySight - myspectral.com Spectruino Analyzer v"+str(_ver));
   // Load the font. For vector fonts, use the createFont() function. 
   fontA = loadFont("Dosis-Regular-32.vlw");
+  //  plotFont = createFont("SansSerif", 20);
+  //  textFont(plotFont);
   // Set the font and its size (in units of pixels)
   textFont(fontA, 32);
   println("Starting..."); 
 }
 
-
 public void detectSpectruino() {
     appState = STATE_DETECTING;
     portDetector.startPortDetection(this);
     clearScreen();
-    printMainText("Detecting Spectruino...");
+    printMainText("Detecting Spectruino...");                    
 }
 
 public void startMockPort() {
@@ -191,7 +198,9 @@ public void draw() {
   //// If Spectruino not present on serial port X  
   if (portDetector.portReady() || portDetector.mockPort) {
       ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
+    
       if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
+        displayStatusText();    
         spectrum1 = new Spectrum(PXDATALENGTH-HEADER_SIZE, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
       
         if (_DBG) {
@@ -356,10 +365,27 @@ public boolean isHeaderPresent(byte[] arr, int headerEndIndex) {
 public void mousePressed() {
   //// Spectruino plugged to Port P or simulated
   if (portDetector.portReady() || portDetector.mockPort) {
-      saveFrame("snapshots/####spectrum.png");
+      
+      //// Save comma separated values into a file
+      String filePath = "snapshots/"+portDetector.portNameShort+"-"+datetimefile()+".csv";
+               
+      FileRecorder F = new FileRecorder();
+      F.setFilePath(filePath);
+      F.writeHeader("Device: " + portDetector.portNameShort + ", " + portDetector.portNameDevice + " Exposure time: " + exposureTimeMs + " ms");
+      println("Device: Mac: " + portDetector.portNameShort);
+      if (calibrationFileFoundp) {
+ ////@TODO:  implement calibrated device save data 
+        F.writeData(Shistory);
+      } else {
+        F.writeData(Shistory);
+      }
+      
+//      saveFrame("snapshots/####spectrum.png");
+      saveFrame("snapshots/"+portDetector.portNameShort+"-"+datetimefile()+".png");
       background(0, 0, 0);
       axes();
       axes_labels();
+      displayStatusText();
   } else {
     //// Spectruino NOT plugged in or simulated
     ////do nothing
@@ -436,10 +462,10 @@ public void handleKeySetExposure () {
   //// for instance a slider might be a good choice.
   switch (key) {
   case '1':
-    setExposureTime(1);
+    setExposureTime(1); // at the moment 09/2012 exposure time increment is 0.032 seconds = 32ms , basic overhead is around 10 - 20 ms.
     break;
   case '2':
-    setExposureTime(2);
+    setExposureTime(2); // = 2*exposure_time_increment
     break;      
   case '3':
     setExposureTime(4);
@@ -547,7 +573,7 @@ public void displayHelp() {
   textSize(24);
   text("Help. \n"+
     "[0][1][2]...[9]: Set exposure time. \n"+
-    "[mouse click]: Save graph. \n"+
+    "[mouse click]: Save graph and CSV data. \n"+
     "[space]: Get light intensity values at given wavelengths. \n"
     , width/4, height/2+26+26+26);    
   println("Help.");
@@ -562,13 +588,23 @@ public void clearScreen() {
 }
 
 public void printMainText(String txt) {
-  //fill(160);
-  //textSize(18);
   fill(244);
 //  textSize(24);
   text(txt, width/4, height/2);
 }
 
+public void printStatusText(String txt) {
+  fill(244);
+//  textSize(24);
+  text(txt, width-350, 25);
+}
+
+public void clearStatusText() {
+  fill(0);
+  stroke(0);
+  rect(width-351, 0,width,25+75);  
+  fill(244);
+}
 
 
 ///////////////////////////////// Spectrum Class  /////////////////////////////////////// 
@@ -585,6 +621,12 @@ class Spectrum {
     }
     if (len>0) {
       adjustNormalize();
+      int[] tmpdata = new int[len];
+      if (Shistory.size() >= historysize) {
+        Shistory.remove(0);
+      }
+      Shistory.add(data);
+      //println("Databuffer: " + Shistory.size());
     }
   } // End Spectrum constructor
 
@@ -593,7 +635,6 @@ class Spectrum {
     //    black=255-data[0]; // 8-bit resolution
 //    if (_DBG) {
 //       println("data before adjust");
-//       printDataDigest(data);
 //    }
 
     if (_reverse_y>0) {
@@ -617,7 +658,6 @@ class Spectrum {
     }
 //    if (_DBG) {
 //      println("adjustedData");
-//      printDataDigest(data);
 //    }
   } // End Spectrum.adjustNormalize
 
@@ -753,16 +793,41 @@ public void loadCalibrationFile() {
 
 /////////////////////// SET EXPORSURE TIME ////////////////////////////////////////
 public void setExposureTime(int valueTime) {
+
   myPort.write('#');
   myPort.write(valueTime);
   myPort.write('#');
   myPort.write(valueTime);
   //    if ( _DBG ) {
-  //      println("EXPosure time: "+valueTime+" ");      
-  //    }
   println("EXPosure time: "+valueTime+" ");
+  //    }
+  
+  exposureTime = valueTime;
+  exposureTimeMs = valueTime*32+10;  // total time = 10 ms + 32ms*N ; = please change if you adjust the firmware
+  println("EXPosure time = , "+exposureTimeMs+", ms");
+  displayStatusText();
+  //clearStatusText();
+  //printStatusText("\nExposure time: "+ exposureTimeMs+", ms");
 }
 /////////////////////// END SET EXPORSURE TIME ////////////////////////////////////////
+
+/////////////////////// Display Status Text //////////////////////////////////////////
+public void displayStatusText() {
+  clearStatusText();
+  if (exposureTimeMs<10) {
+    printStatusText("\nSet exposure time (Press [4]) ");
+  } else {
+    printStatusText("\nExposure time: "+ exposureTimeMs+", ms");
+  }
+  printStatusText("Port: "+portDetector.portNameDevice);
+  String msg = "\n\n";
+  for (int i=0; i<detectingDots; i++) {
+      msg += ". ";
+  }  
+  printStatusText(msg);
+  detectingDots = (detectingDots+1)%30;
+
+}
 
 //// These functions generate data in simulation mode 
 
@@ -776,50 +841,76 @@ public void fillMockData(byte[] arr) {
     arr[arr.length-2] = 67;
   
 }
+// The FileRecorder writes/appends the interval data to the recorder tab delineated text file.
+//
+class FileRecorder {
+  String _filePath;
+  String[] _textLine = new String[4];
 
-class Timer {
- 
-  int savedTime; // When Timer started
-  int totalTime; // How long Timer should last
-  boolean timerRunning = false;
-  
-  Timer(int tempTotalTime) {
-    totalTime = tempTotalTime;
+  public void setFilePath(String theFName) {
+    _filePath = theFName;
+    println("File record name is " + _filePath);
   }
-  
-  // Starting the timer
-  public void start() {
-    // When the timer starts it stores the current time in milliseconds.
-    savedTime = millis();
-   timerRunning = true;
-  }
-  
-  public void stop() {
-    timerRunning = false;
-  }
-  
-  // The function isFinished() returns true if 5,000 ms have passed. 
-  // The work of the timer is farmed out to this method.
-  public boolean isFinished() { 
-    if (!timerRunning) { 
-      return true;
+
+  public void writeHeader(String customText) {
+    _textLine[0] = "Spectruino Beta v1.0 mySight " + TAB + "Light intensity vs. Wavelength [nm] / Pixel count [#]" + TAB; //_textLine[0] + 
+    _textLine[1] = "Timestamp: " + datetime();
+    _textLine[2] = customText;
+    ////@TODO: "Wavelength [nm] (to be implemented...) ,";
+    _textLine[3] = "Pixel #," + TAB + "Light Intensity [a.u.],"+ TAB + "Wavelength [nm] (to be implemented...) ,";
+    if (_filePath != null) {
+      saveStrings(savePath(_filePath), _textLine);
+      println("Wrote header to " + savePath(_filePath));
+      println(_textLine[0]);
     }
-    // Check how much time has passed
-    int passedTime = millis()- savedTime;
-    if (passedTime > totalTime) {
-      return true;
-    } else {
-      return false;
+  }
+
+  //// Write data from measurement history into a file
+  public void writeData(Vector S) {
+    PrintWriter pw = null;
+    try {
+      pw = new PrintWriter(new BufferedWriter(new FileWriter(savePath(_filePath), true))); // true means: "append"
+      int[] data = (int[]) S.get(0);
+      int[][] mx = new int[S.size()][data.length];
+
+      for (int h=S.size()-1;h>=0; h--)
+      { data = (int[]) S.get(h);
+        mx[h]= data; //data = (int[]) S.get(h); 
+      }
+      
+    for (int i = 0; i < data.length; i++) {
+      pw.print(i);
+      for (int j=0; j<S.size();j++){
+        pw.print("," + TAB + mx[j][i]);
+      }
+      pw.print("\r\n");
+    }   
+    //dataLine = dataLine.replaceAll(" ","\t");
+    }
+
+
+    catch (IOException e) {
+      // Report problem or handle it
+      e.printStackTrace();
+    }
+
+    finally {
+      if (pw != null) {
+        pw.close();
+      }
     }
   }
 }
 
 
+
 class PortDetector  {
   
-  int detectionInterval = 3 * 1000;  // N seconds
+  int detectionInterval = 2 * 1000;  // N seconds
   Timer timer = new Timer(detectionInterval);
   String[] ports = new String[0];
+  String portNameDevice;
+  String portNameShort;
   Serial[] serials = new Serial[ports.length];
   boolean deviceConnected = false;
   boolean portInitializationInProgress = false;
@@ -893,6 +984,14 @@ class PortDetector  {
             //if (_DBG) {
               println("Spectruino on port Nr. ["+i+"] "+ ports[i] );
               printMainText("\nSpectruino connected on port "+ports[i]);
+              portNameDevice = new String(ports[i]);
+              String tmp[] = match(ports[i], "(?<=-).*$|com"); // |com
+              if (tmp!=null) {
+                portNameShort = tmp[0];
+              } else {
+                portNameShort = "unknown";
+              }
+              
             //}
             spectruinoDetectionInProgress = false;
           }
@@ -918,6 +1017,76 @@ class PortDetector  {
     return detectionTimedOut;
   }
 }
+
+class Timer {
+ 
+  int savedTime; // When Timer started
+  int totalTime; // How long Timer should last
+  boolean timerRunning = false;
+  
+  Timer(int tempTotalTime) {
+    totalTime = tempTotalTime;
+  }
+  
+  // Starting the timer
+  public void start() {
+    // When the timer starts it stores the current time in milliseconds.
+    savedTime = millis();
+   timerRunning = true;
+  }
+  
+  public void stop() {
+    timerRunning = false;
+  }
+  
+  // The function isFinished() returns true if 5,000 ms have passed. 
+  // The work of the timer is farmed out to this method.
+  public boolean isFinished() { 
+    if (!timerRunning) { 
+      return true;
+    }
+    // Check how much time has passed
+    int passedTime = millis()- savedTime;
+    if (passedTime > totalTime) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+public String mydate(int offset)
+{
+  Date d = new Date();
+  long timestamp = d.getTime() + (86400000 * offset);
+  String date = new java.text.SimpleDateFormat("yyyyMMdd").format(timestamp);
+  return date;
+}
+
+public String today()
+{
+  return mydate(0);
+}
+
+public String mytime()
+{  Date d = new Date();
+  long timestamp = d.getTime();
+  String date = new java.text.SimpleDateFormat("HHmmss").format(timestamp);
+  return date;
+}
+
+public String datetimefile()
+{  Date d = new Date();
+  long timestamp = d.getTime();
+  String date = new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(timestamp);
+  return date;
+}
+public String datetime()
+{  Date d = new Date();
+  long timestamp = d.getTime();
+  String date = new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(timestamp);
+  return date;
+}
+
 public void printDataDigest(byte[] arr) {
   int digestStartLength = 5;
   int digestEndLength = 5;  

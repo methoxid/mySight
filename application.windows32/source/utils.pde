@@ -1,3 +1,36 @@
+String mydate(int offset)
+{
+  Date d = new Date();
+  long timestamp = d.getTime() + (86400000 * offset);
+  String date = new java.text.SimpleDateFormat("yyyyMMdd").format(timestamp);
+  return date;
+}
+
+String today()
+{
+  return mydate(0);
+}
+
+String mytime()
+{  Date d = new Date();
+  long timestamp = d.getTime();
+  String date = new java.text.SimpleDateFormat("HHmmss").format(timestamp);
+  return date;
+}
+
+String datetimefile()
+{  Date d = new Date();
+  long timestamp = d.getTime();
+  String date = new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(timestamp);
+  return date;
+}
+String datetime()
+{  Date d = new Date();
+  long timestamp = d.getTime();
+  String date = new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(timestamp);
+  return date;
+}
+
 void printDataDigest(byte[] arr) {
   int digestStartLength = 5;
   int digestEndLength = 5;  

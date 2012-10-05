@@ -39,7 +39,7 @@
     <key>Java</key>
     <dict>
       <key>VMOptions</key>
-      <string></string>
+      <string> -Xms64m -Xmx256m</string>
       <key>MainClass</key>
       <string>mySight</string>
       <key>JVMVersion</key>

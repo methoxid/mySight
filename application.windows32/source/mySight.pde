@@ -1,4 +1,4 @@
-/** 
+ /** 
  * mySight - Spectruino Analyzer
  *  
  * by Andrej Mosat & Michal Kostic
@@ -24,8 +24,8 @@
  * First, connect Spectruino through your USB port. Run the program.
  * First available serial port will be selected as input.
  * 
- * 07/2012
- * v0.8
+ * 10/2012
+ * v0.9
  * 
  *
  *
@@ -68,13 +68,15 @@ PFont fontA;
 //TODO: Add graphical myspectral icon //PGraphics icon;
 
 Spectrum spectrum1;                  // global var
+int historysize = 10;                // save N spectra into the history buffer
+Vector Shistory = new Vector(10);    // history spectra buffer
 //int PXSIZE = 1001;                 // number of pixels to read from sensor
 int PXSIZE = 501;                    // number of pixels to read from sensor
 int PXDATALENGTH = 510;              // size of string received from sensor
 int PXTOT = 2050;
 
 //// Serial Port Communication
-int bitrate = 115200;                // bitrate of Serial port in Baud
+int bitrate = 115200;                // bitrate of Serial port in Baud  int bitrate = 56700; //adjust if you use slower firmware
 String portName;                     // serial COM port name
 byte [] serialPixelBuffer = new byte[PXDATALENGTH]; // serial pixel data array as a Bytes, PX1, PX2, ....., PX501, HEADER
 byte[] incomingDataBuffer = new byte[PXDATALENGTH]; 
@@ -87,10 +89,10 @@ String[] portFound;                  // null if spectruino serial port not found
 int HEADER_SIZE = 9;                  // number of bytes in header +-1
 String _cdelim = "yC";               // String delimiter from Microcontroller
 int _c = int('C');                   // the delimiter character, e.g. "C" denoting end of serial pixel data array, PX1, PX2, ....., PX501, HEADER, where HEADER ends with _c 
-PortDetector portDetector = new PortDetector();;   // Detecting the serial port on which Spectruino resides
+PortDetector portDetector = new PortDetector();   // Detecting the serial port on which Spectruino resides
+int detectingDots = 0;
 
 //// General variables 
-//int ccc=0; // counter
 boolean _starting = true;   // if the application is starting 
 
 //// Program states for debugging purposes and program flow
@@ -102,6 +104,10 @@ int STATE_MEASURE = 3;               // 3 - measurement in progress
 int STATE_DETECTION_TIMED_OUT = -10; // 10 - spectruino detection timed out
 int STATE_SIMULATION_MODE = 4;
 int appState = STATE_FIRST_RUN;      // 0 - just started
+
+//// Device Hardware Variables ////
+int exposureTime=0;
+int exposureTimeMs = 0; // exposure time in milliseconds  
 
 //// Calibration data ////
 // calibration works with y=a*x+b linear regression x = pixel, y=wavelength, a=slope [nm/px] b=intercept [nm]
@@ -120,17 +126,18 @@ void prepareStage() {
   frame.setTitle("mySight - myspectral.com Spectruino Analyzer v"+str(_ver));
   // Load the font. For vector fonts, use the createFont() function. 
   fontA = loadFont("Dosis-Regular-32.vlw");
+  //  plotFont = createFont("SansSerif", 20);
+  //  textFont(plotFont);
   // Set the font and its size (in units of pixels)
   textFont(fontA, 32);
   println("Starting..."); 
 }
 
-
 void detectSpectruino() {
     appState = STATE_DETECTING;
     portDetector.startPortDetection(this);
     clearScreen();
-    printMainText("Detecting Spectruino...");
+    printMainText("Detecting Spectruino...");                    
 }
 
 void startMockPort() {
@@ -169,7 +176,9 @@ void draw() {
   //// If Spectruino not present on serial port X  
   if (portDetector.portReady() || portDetector.mockPort) {
       ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
+    
       if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
+        displayStatusText();    
         spectrum1 = new Spectrum(PXDATALENGTH-HEADER_SIZE, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
       
         if (_DBG) {
@@ -334,10 +343,27 @@ boolean isHeaderPresent(byte[] arr, int headerEndIndex) {
 void mousePressed() {
   //// Spectruino plugged to Port P or simulated
   if (portDetector.portReady() || portDetector.mockPort) {
-      saveFrame("snapshots/####spectrum.png");
+      
+      //// Save comma separated values into a file
+      String filePath = "snapshots/"+portDetector.portNameShort+"-"+datetimefile()+".csv";
+               
+      FileRecorder F = new FileRecorder();
+      F.setFilePath(filePath);
+      F.writeHeader("Device: " + portDetector.portNameShort + ", " + portDetector.portNameDevice + " Exposure time: " + exposureTimeMs + " ms");
+      println("Device: Mac: " + portDetector.portNameShort);
+      if (calibrationFileFoundp) {
+ ////@TODO:  implement calibrated device save data 
+        F.writeData(Shistory);
+      } else {
+        F.writeData(Shistory);
+      }
+      
+//      saveFrame("snapshots/####spectrum.png");
+      saveFrame("snapshots/"+portDetector.portNameShort+"-"+datetimefile()+".png");
       background(0, 0, 0);
       axes();
       axes_labels();
+      displayStatusText();
   } else {
     //// Spectruino NOT plugged in or simulated
     ////do nothing
@@ -414,10 +440,10 @@ void handleKeySetExposure () {
   //// for instance a slider might be a good choice.
   switch (key) {
   case '1':
-    setExposureTime(1);
+    setExposureTime(1); // at the moment 09/2012 exposure time increment is 0.032 seconds = 32ms , basic overhead is around 10 - 20 ms.
     break;
   case '2':
-    setExposureTime(2);
+    setExposureTime(2); // = 2*exposure_time_increment
     break;      
   case '3':
     setExposureTime(4);
@@ -525,7 +551,7 @@ void displayHelp() {
   textSize(24);
   text("Help. \n"+
     "[0][1][2]...[9]: Set exposure time. \n"+
-    "[mouse click]: Save graph. \n"+
+    "[mouse click]: Save graph and CSV data. \n"+
     "[space]: Get light intensity values at given wavelengths. \n"
     , width/4, height/2+26+26+26);    
   println("Help.");
@@ -540,13 +566,23 @@ void clearScreen() {
 }
 
 void printMainText(String txt) {
-  //fill(160);
-  //textSize(18);
   fill(244);
 //  textSize(24);
   text(txt, width/4, height/2);
 }
 
+void printStatusText(String txt) {
+  fill(244);
+//  textSize(24);
+  text(txt, width-350, 25);
+}
+
+void clearStatusText() {
+  fill(0);
+  stroke(0);
+  rect(width-351, 0,width,25+75);  
+  fill(244);
+}
 
 
 ///////////////////////////////// Spectrum Class  /////////////////////////////////////// 
@@ -563,6 +599,12 @@ class Spectrum {
     }
     if (len>0) {
       adjustNormalize();
+      int[] tmpdata = new int[len];
+      if (Shistory.size() >= historysize) {
+        Shistory.remove(0);
+      }
+      Shistory.add(data);
+      //println("Databuffer: " + Shistory.size());
     }
   } // End Spectrum constructor
 
@@ -571,7 +613,6 @@ class Spectrum {
     //    black=255-data[0]; // 8-bit resolution
 //    if (_DBG) {
 //       println("data before adjust");
-//       printDataDigest(data);
 //    }
 
     if (_reverse_y>0) {
@@ -595,7 +636,6 @@ class Spectrum {
     }
 //    if (_DBG) {
 //      println("adjustedData");
-//      printDataDigest(data);
 //    }
   } // End Spectrum.adjustNormalize
 
@@ -731,13 +771,38 @@ void loadCalibrationFile() {
 
 /////////////////////// SET EXPORSURE TIME ////////////////////////////////////////
 void setExposureTime(int valueTime) {
+
   myPort.write('#');
   myPort.write(valueTime);
   myPort.write('#');
   myPort.write(valueTime);
   //    if ( _DBG ) {
-  //      println("EXPosure time: "+valueTime+" ");      
-  //    }
   println("EXPosure time: "+valueTime+" ");
+  //    }
+  
+  exposureTime = valueTime;
+  exposureTimeMs = valueTime*32+10;  // total time = 10 ms + 32ms*N ; = please change if you adjust the firmware
+  println("EXPosure time = , "+exposureTimeMs+", ms");
+  displayStatusText();
+  //clearStatusText();
+  //printStatusText("\nExposure time: "+ exposureTimeMs+", ms");
 }
 /////////////////////// END SET EXPORSURE TIME ////////////////////////////////////////
+
+/////////////////////// Display Status Text //////////////////////////////////////////
+void displayStatusText() {
+  clearStatusText();
+  if (exposureTimeMs<10) {
+    printStatusText("\nSet exposure time (Press [4]) ");
+  } else {
+    printStatusText("\nExposure time: "+ exposureTimeMs+", ms");
+  }
+  printStatusText("Port: "+portDetector.portNameDevice);
+  String msg = "\n\n";
+  for (int i=0; i<detectingDots; i++) {
+      msg += ". ";
+  }  
+  printStatusText(msg);
+  detectingDots = (detectingDots+1)%30;
+
+}
