@@ -66,6 +66,7 @@ int fgcolor;			     // Fill color
 float _thck=2.0;                     // line thickness for axes 
 PFont fontA;
 //TODO: Add graphical myspectral icon //PGraphics icon;
+PImage imglogo;
 
 Spectrum spectrum1;                  // global var
 int historysize = 10;                // save N spectra into the history buffer
@@ -152,6 +153,7 @@ void setup() {
   printMainText("This is mySight for Spectruino beta.\nPress:\n[1] Start simulation [2] Detect spectruino\n[h] for help");
   // Load calibration file, if any 
   loadCalibrationFile();
+  imglogo = loadImage("myspectral-logo-BS01.png"); 
 }  
 
 
@@ -575,6 +577,8 @@ void printStatusText(String txt) {
   fill(244);
 //  textSize(24);
   text(txt, width-350, 25);
+  imageMode(CORNERS);
+  image(imglogo, 60, 0, 310, 90); //  display logo
 }
 
 void clearStatusText() {
