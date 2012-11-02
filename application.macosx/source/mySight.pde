@@ -66,6 +66,7 @@ int fgcolor;			     // Fill color
 float _thck=2.0;                     // line thickness for axes 
 PFont fontA;
 //TODO: Add graphical myspectral icon //PGraphics icon;
+PImage imglogo;
 
 Spectrum spectrum1;                  // global var
 int historysize = 10;                // save N spectra into the history buffer
@@ -152,6 +153,7 @@ void setup() {
   printMainText("This is mySight for Spectruino beta.\nPress:\n[1] Start simulation [2] Detect spectruino\n[h] for help");
   // Load calibration file, if any 
   loadCalibrationFile();
+  imglogo = loadImage("myspectral-logo-BS01.png"); 
 }  
 
 
@@ -492,10 +494,13 @@ void axes() {
   //// draw y-axis
   line(_dx, height-_dy+5, _dx, height-(_dy+_ysize));
   //// draw x-ticks
-  for (int i=0; i<(_xsize); i=i+x_every) {
-    line(_dx+i, height-_dy+5, _dx+i, height-_dy);
+  if (calibrationFileFoundp) {
+    // is handled in axes_labels
+  } else {
+    for (int i=0; i<(_xsize); i=i+x_every) {
+      line(_dx+i, height-_dy+5, _dx+i, height-_dy);
+    }
   }
-
   // draw y-ticks
   for (int i=0; i<(height-2*_dy); i=i+y_every) {
     line(_dx-5, height-_dy-i, _dx, height-_dy-i);
@@ -514,13 +519,26 @@ void axes_labels() {
   textSize(x_size_txt);
   textAlign(CENTER);
   //// Calibration file found? If yes, draw wavelength labels.
+
   if (calibrationFileFoundp) {
-    for (int i=0; i<(_xsize); i=i+2*x_every) {
-      text( int((i/_gain_x)*calibrationA+calibrationB), _dx+i, height-_dy+1.1*x_size_txt);
+    float wmin = calibrationB;
+    float wmax = round((_xsize/_gain_x)/10)*10*calibrationA+calibrationB; 
+    int wmin_rounded = ceil(wmin/10)*10;
+    int wmax_rounded = floor(wmax/10)*10;
+    float wdivisions = (wmax-wmin)/x_every;
+    float px_nm = _xsize/(wmax-wmin);
+    int pxmin_rounded = round((wmin_rounded-wmin)*px_nm);
+    float i_every = x_every*px_nm;
+    int pxmax_rounded = floor(wdivisions*x_every*px_nm-pxmin_rounded);
+
+    for (float i=float(pxmin_rounded); i<pxmax_rounded; i=i+i_every) {
+      text( round((i/px_nm)+calibrationB), _dx+round(i), height-_dy+1.1*x_size_txt);
+    }
+    for (float i=float(pxmin_rounded); i<pxmax_rounded; i=i+i_every/2) {
+        line(_dx+i, height-_dy+5, _dx+i, height-_dy);
     }
     text("Wavelength [nm]",width/2, height-_dy+2.2*x_size_txt);
-  }
-  else {
+  } else {
     for (int i=0; i<(_xsize); i=i+2*x_every) {
       text(i/_gain_x, _dx+i, height-_dy+1.1*x_size_txt);
     }
@@ -575,6 +593,8 @@ void printStatusText(String txt) {
   fill(244);
 //  textSize(24);
   text(txt, width-350, 25);
+  imageMode(CORNERS);
+  image(imglogo, 60, 0, 310, 90); //  display logo
 }
 
 void clearStatusText() {
