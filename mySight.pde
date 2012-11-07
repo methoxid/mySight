@@ -24,8 +24,8 @@
  * First, connect Spectruino through your USB port. Run the program.
  * First available serial port will be selected as input.
  * 
- * 10/2012
- * v0.9
+ * 11/2012
+ * v0.92
  * 
  *
  *
@@ -40,6 +40,8 @@
  - save a movie
  - measure dark level
  - dark level subtraction ON/OFF switch & display
+ - correction of aberrations by software deconvolution as in http://www.horiba.com/scientific/products/optics-tutorial/monochromators-spectrographs/
+  ( thanks to Prof. Ahmed Zahab for pointing this out )
  **/
 
 import processing.serial.*;
@@ -68,12 +70,17 @@ PFont fontA;
 //TODO: Add graphical myspectral icon //PGraphics icon;
 PImage imglogo;
 
+//// Header of Bytes from Serial 
+int HEADER_SIZE = 9;                  // number of bytes in header +-1
+String _cdelim = "yC";               // String delimiter from Microcontroller
+int _c = int('C');                   // the delimiter character, e.g. "C" denoting end of serial pixel data array, PX1, PX2, ....., PX501, HEADER, where HEADER ends with _c 
+
 Spectrum spectrum1;                  // global var
 int historysize = 10;                // save N spectra into the history buffer
 Vector Shistory = new Vector(10);    // history spectra buffer
 //int PXSIZE = 1001;                 // number of pixels to read from sensor
-int PXSIZE = 501;                    // number of pixels to read from sensor
-int PXDATALENGTH = 510;              // size of string received from sensor
+int PXSIZE = 501;  // 2000;          // number of pixels to read from sensor 501 or 2001
+int PXDATALENGTH = PXSIZE+HEADER_SIZE;  //510            // size of string received from sensor
 int PXTOT = 2050;
 
 //// Serial Port Communication
@@ -86,10 +93,6 @@ int[] serialInArray = new int[PXTOT];// Where we'll put what we receive
 int serialCount = 0;                 // A count of how many bytes we receive
 Serial myPort;                       // The serial port       
 String[] portFound;                  // null if spectruino serial port not found (true if port was found)
-//// Header of Bytes from Serial 
-int HEADER_SIZE = 9;                  // number of bytes in header +-1
-String _cdelim = "yC";               // String delimiter from Microcontroller
-int _c = int('C');                   // the delimiter character, e.g. "C" denoting end of serial pixel data array, PX1, PX2, ....., PX501, HEADER, where HEADER ends with _c 
 PortDetector portDetector = new PortDetector();   // Detecting the serial port on which Spectruino resides
 int detectingDots = 0;
 
@@ -174,11 +177,11 @@ void draw() {
       incomingDataLength = PXDATALENGTH;
       delay(100); //// add small pause as with real spectruino 
   }  
-
+  
   //// If Spectruino not present on serial port X  
   if (portDetector.portReady() || portDetector.mockPort) {
       ///////////////// Draw images when correct pixel data array received -- See EVENTS for Serial Port how to handle this ///////////////////
-    
+      
       if  (incomingDataLength == PXDATALENGTH) { //// Serial data of correct length has been received, construct the spectrum !!!  
         displayStatusText();    
         spectrum1 = new Spectrum(PXDATALENGTH-HEADER_SIZE, serialPixelBuffer);  // PXDATALENGTH-9 = 501           
@@ -243,8 +246,8 @@ void serialEvent(Serial p) {
 ////////////////////////////////////////  printDataDigest(portBytes);
 
   // XXX: check why occasionally crashing here - probably when spectruino is unplugged
-   if (isHeaderPresent(portBytes, currDataLength)) {
-     if(incomingDataLength+currDataLength==PXDATALENGTH) {
+   if (isHeaderPresent(portBytes, currDataLength)) { 
+     if((incomingDataLength+currDataLength)==PXDATALENGTH) { 
        // got complete measurement
         System.arraycopy(portBytes, 0, incomingDataBuffer, incomingDataLength, currDataLength);       
         incomingDataLength+=currDataLength;
