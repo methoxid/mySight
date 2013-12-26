@@ -1,6 +1,12 @@
+20131226:
+version 1.0:
+- ported for Processing 2.0
+- minor adjustments
+- linux64 version of application
+
 20121005:
 version 0.9
--saving comma separated data now possible in /snapshot folder
+- saving comma separated data now possible in /snapshot folder
 - file naming changed to "device serial number"+"date YYYYMMDDHHmmss" .png and .csv
 - exposure time added into the main screen
 - progress bar of measurement added
