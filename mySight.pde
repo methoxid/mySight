@@ -24,9 +24,9 @@
  * First, connect Spectruino through your USB port. Run the program.
  * First available serial port will be selected as input.
  * 
- * 11/2012
- * v0.92
- * 
+ * 01/2014
+ * v1.00
+ * This version is for Processing 2.x, it can not be compiled with the old 1.5.x
  *
  *
  */
@@ -44,6 +44,9 @@
   ( thanks to Prof. Ahmed Zahab for pointing this out )
  **/
 
+import java.util.*;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import processing.serial.*;
 
 boolean _DBG = true;                 // debug yes no 
@@ -77,7 +80,7 @@ int _c = int('C');                   // the delimiter character, e.g. "C" denoti
 
 Spectrum spectrum1;                  // global var
 int historysize = 10;                // save N spectra into the history buffer
-Vector Shistory = new Vector(10);    // history spectra buffer
+Vector Shistory = new Vector(10,1);    // history spectra buffer
 //int PXSIZE = 1001;                 // number of pixels to read from sensor
 int PXSIZE = 501;  // 2000;          // number of pixels to read from sensor 501 or 2001
 int PXDATALENGTH = PXSIZE+HEADER_SIZE;  //510            // size of string received from sensor
