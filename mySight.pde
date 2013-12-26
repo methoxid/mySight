@@ -33,7 +33,6 @@
 
 /**
  * TODO/Ideas:
- - set and display Exposure Time 
  - display "Underexposed" "Overexposed"
  - detect Peaks
  - save spectrum as PDF, CSV
